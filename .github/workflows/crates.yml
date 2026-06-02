@@ -14,3 +14,4 @@ jobs:
         with:
           ssh-private-key: ${{ secrets.ssh_key }}
           directories: src-tauri
+          tag-filter: 'v3.1[6-9]*'
