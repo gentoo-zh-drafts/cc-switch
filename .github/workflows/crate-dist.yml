@@ -1,4 +1,4 @@
-name: Create crate dist
+name: Create distfiles
 on:
   push:
     tags:
@@ -6,11 +6,11 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: 'Tag to create crate dist for (e.g. v3.16.1)'
+        description: 'Tag to create distfiles for (e.g. v3.16.1)'
         required: true
 
 jobs:
-  crate-dist:
+  distfiles:
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -19,6 +19,13 @@ jobs:
         with:
           ref: ${{ inputs.tag || github.ref_name }}
 
+      - name: Compute clean version
+        id: ver
+        run: |
+          raw="${{ inputs.tag || github.ref_name }}"
+          echo "clean=${raw#v}" >> $GITHUB_OUTPUT
+
+      # --- crate tarball ---
       - uses: actions/setup-python@v5
         with:
           python-version: '3.13'
@@ -34,27 +41,42 @@ jobs:
         uses: actions/cache@v4
         with:
           path: /tmp/dist
-          key: dist
-
-      - name: Compute dist filename
-        id: dist
-        run: |
-          raw="${{ inputs.tag || github.ref_name }}"
-          clean="${raw#v}"
-          echo "filename=cc-switch-${clean}-crates.tar.xz" >> $GITHUB_OUTPUT
+          key: crate-dist
 
       - name: Create crate tarball
         run: |
           pycargoebuild \
             --crate-tarball \
-            --crate-tarball-path "${{ steps.dist.outputs.filename }}" \
+            --crate-tarball-path "cc-switch-${{ steps.ver.outputs.clean }}-crates.tar.xz" \
             --distdir /tmp/dist \
             --license-mapping license-mapping.conf \
             src-tauri
 
+      # --- web dist tarball ---
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '20'
+
+      - uses: pnpm/action-setup@v6
+        with:
+          version: '10.12.3'
+          run_install: false
+
+      - name: Install frontend deps
+        run: pnpm install --frozen-lockfile
+
+      - name: Build frontend
+        run: pnpm build:renderer
+
+      - name: Package web dist
+        run: tar -cJf "cc-switch-${{ steps.ver.outputs.clean }}-web.tar.xz" dist/
+
+      # --- release ---
       - name: Upload to release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ inputs.tag || github.ref_name }}
-          files: ${{ steps.dist.outputs.filename }}
+          files: |
+            cc-switch-${{ steps.ver.outputs.clean }}-crates.tar.xz
+            cc-switch-${{ steps.ver.outputs.clean }}-web.tar.xz
           fail_on_unmatched_files: true
