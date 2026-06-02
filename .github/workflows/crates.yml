@@ -1,16 +1,21 @@
-name: Sync with upstream
+name: Sync upstream tags
 on:
-  push:
   schedule:
     - cron: "12 * * * *"
   workflow_dispatch:
 
 jobs:
-  sync-mirror:
+  sync-tags:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
-      - name: Update mirror
-        uses: projg2/crate-dist-mirror-action@v2
+      - uses: actions/checkout@v6
         with:
-          ssh-private-key: ${{ secrets.ssh_key }}
-          directories: src-tauri
+          fetch-depth: 0
+
+      - name: Fetch and push upstream tags
+        run: |
+          git remote add upstream https://github.com/farion1231/cc-switch.git
+          git fetch upstream --tags
+          git push origin --tags --force

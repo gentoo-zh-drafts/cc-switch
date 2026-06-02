@@ -1,0 +1,60 @@
+name: Create crate dist
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag to create crate dist for (e.g. v3.16.1)'
+        required: true
+
+jobs:
+  crate-dist:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.tag || github.ref_name }}
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Install pycargoebuild
+        run: pip install pycargoebuild
+
+      - name: Grab license mapping
+        run: |
+          wget https://raw.githubusercontent.com/gentoo/gentoo/refs/heads/master/metadata/license-mapping.conf
+
+      - name: Cache fetched crates
+        uses: actions/cache@v4
+        with:
+          path: /tmp/dist
+          key: dist
+
+      - name: Compute dist filename
+        id: dist
+        run: |
+          raw="${{ inputs.tag || github.ref_name }}"
+          clean="${raw#v}"
+          echo "filename=cc-switch-${clean}-crates.tar.xz" >> $GITHUB_OUTPUT
+
+      - name: Create crate tarball
+        run: |
+          pycargoebuild \
+            --crate-tarball \
+            --crate-tarball-path "${{ steps.dist.outputs.filename }}" \
+            --distdir /tmp/dist \
+            --license-mapping license-mapping.conf \
+            src-tauri
+
+      - name: Upload to release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ inputs.tag || github.ref_name }}
+          files: ${{ steps.dist.outputs.filename }}
+          fail_on_unmatched_files: true
