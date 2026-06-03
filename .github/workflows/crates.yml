@@ -15,7 +15,11 @@ jobs:
           fetch-depth: 0
 
       - name: Fetch and push upstream tags
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
         run: |
+          set -x
           git remote add upstream https://github.com/farion1231/cc-switch.git
           git fetch upstream --tags
+          git remote set-url origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${{ github.repository }}.git"
           git push origin --tags --force
