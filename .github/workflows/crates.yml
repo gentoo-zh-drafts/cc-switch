@@ -9,15 +9,15 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
-      workflows: write
     steps:
       - uses: actions/checkout@v6
         with:
           fetch-depth: 0
+          token: ${{ secrets.PUSH_TOKEN }}
 
       - name: Fetch and push upstream tags
         env:
-          GITHUB_TOKEN: ${{ github.token }}
+          GITHUB_TOKEN: ${{ secrets.PUSH_TOKEN }}
         run: |
           set -x
           git remote add upstream https://github.com/farion1231/cc-switch.git
