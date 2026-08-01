@@ -18,9 +18,17 @@ jobs:
       - name: Fetch and push upstream tags
         env:
           GITHUB_TOKEN: ${{ secrets.PUSH_TOKEN }}
+          GH_REPO: ${{ github.repository }}
         run: |
           set -x
           git remote add upstream https://github.com/farion1231/cc-switch.git
           git fetch upstream --tags --force
           git remote set-url origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${{ github.repository }}.git"
           git push origin --tags --force
+
+          # Tags pushed with PUSH_TOKEN raise no push event, so crate-dist never
+          # starts on its own. Dispatch it for the newest tag lacking distfiles.
+          latest=$(git tag -l 'v*' | sort -V | tail -1)
+          if ! gh release view "${latest}" --json assets --jq '.assets[].name' 2>/dev/null | grep -q crates; then
+            gh workflow run crate-dist.yml -f tag="${latest}"
+          fi
