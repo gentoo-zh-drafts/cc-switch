@@ -1,4 +1,5 @@
 name: Create distfiles
+run-name: ${{ inputs.tag || github.ref_name }}
 on:
   push:
     tags:
