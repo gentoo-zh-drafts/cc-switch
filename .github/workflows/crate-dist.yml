@@ -16,8 +16,10 @@ jobs:
     permissions:
       contents: write
     steps:
+      # the fork's own tags depend on its hourly sync, which GitHub can stop for days
       - uses: actions/checkout@v6
         with:
+          repository: farion1231/cc-switch
           ref: ${{ inputs.tag || github.ref_name }}
 
       - name: Compute clean version
